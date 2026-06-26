@@ -12,11 +12,16 @@ A MERN Stack mini application for managing products, stock, and customer orders.
 ```
 exhibyte_practical/
 ├── backend/
-│   ├── middleware/errorHandler.js
+│   ├── middleware/
+│   │   ├── auth.js
+│   │   ├── errorHandler.js
+│   │   └── roleCheck.js
 │   ├── models/
+│   │   ├── User.js
 │   │   ├── Product.js
 │   │   └── Order.js
 │   ├── routes/
+│   │   ├── auth.js
 │   │   ├── products.js
 │   │   ├── orders.js
 │   │   └── dashboard.js
@@ -24,12 +29,34 @@ exhibyte_practical/
 │   └── server.js
 └── frontend/
     ├── src/
-    │   ├── components/layout/AppLayout.jsx
+    │   ├── components/
+    │   │   ├── auth/ProtectedRoute.jsx
+    │   │   ├── common/
+    │   │   │   ├── LoadingSpinner.jsx
+    │   │   │   ├── ErrorAlert.jsx
+    │   │   │   ├── StatusTag.jsx
+    │   │   │   ├── PageHeader.jsx
+    │   │   │   ├── StatCard.jsx
+    │   │   │   └── CategoryTag.jsx
+    │   │   ├── layout/AppLayout.jsx
+    │   │   ├── products/
+    │   │   │   ├── ProductTable.jsx
+    │   │   │   ├── ProductForm.jsx
+    │   │   │   └── ProductFilters.jsx
+    │   │   └── orders/
+    │   │       ├── OrderTable.jsx
+    │   │       └── OrderForm.jsx
     │   ├── pages/
+    │   │   ├── Login.jsx
     │   │   ├── Dashboard.jsx
     │   │   ├── Products.jsx
     │   │   └── Orders.jsx
     │   ├── services/api.js
+    │   ├── store/
+    │   │   ├── authStore.js
+    │   │   ├── dashboardStore.js
+    │   │   ├── productStore.js
+    │   │   └── orderStore.js
     │   ├── App.jsx
     │   └── main.jsx
     └── .env
@@ -89,7 +116,7 @@ The app will be available at `http://localhost:5173`
 
 ## Business Logic
 - **Stock Validation:** Order creation checks stock availability per item; insufficient stock prevents order.
-- **Stock Deduction:** Stock is atomically deducted on successful order placement (MongoDB transaction).
+- **Stock Deduction:** Stock is deducted per item using atomic `$inc` operations after all validations pass.
 - **Total Calculation:** `totalAmount` is computed server-side as `Σ (quantity × product.price)`.
 - **Order Cancellation:** Cancelling an order restores all product stock atomically.
 - **Low Stock Detection:** Products where `stock <= reorderLevel` are counted on the dashboard.
@@ -101,7 +128,7 @@ The app will be available at `http://localhost:5173`
 
 ### Business Understanding
 1. **Simultaneous orders for the same product?**
-   MongoDB transactions are used for order creation. If two requests hit concurrently, the second will see the already-deducted stock and fail with "Insufficient stock". For high-throughput systems, a queue or optimistic locking pattern would be used.
+   Stock is validated and deducted sequentially using atomic `$inc` operations. In the current implementation, a race condition is possible under high concurrency — both requests could pass the stock check before either deducts. For production, this would be solved with optimistic locking (version fields + conditional updates) or a job queue to serialize writes per product.
 
 2. **Why calculate totalAmount on the backend?**
    Frontend values can be tampered with. Backend calculation uses the canonical price from the database, preventing price manipulation.
