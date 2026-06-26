@@ -13,11 +13,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Normalize error messages; redirect to login on 401
+// Normalize error messages; redirect to login on 401 (but not during login/register itself)
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
+    const isAuthEndpoint = error.config?.url?.startsWith('/auth/');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem('ims_token');
       localStorage.removeItem('ims_user');
       window.location.href = '/login';
